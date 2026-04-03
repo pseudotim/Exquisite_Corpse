@@ -22,6 +22,27 @@ const TEMPLATES = {
   legs:  { width: 850, height: 402, borderHeight: 0,  label: 'Legs & Feet' },
 };
 
+function makeEmptyGame(gameId, role, playerId) {
+  return {
+    id: gameId,
+    status: 'playing',
+    currentTurn: role,
+    players: { head: null, torso: null, legs: null, [role]: playerId },
+    uploads: { head: null, torso: null, legs: null },
+  };
+}
+
+function sanitizeGame(game, gameId, role, playerId) {
+  if (!game) return makeEmptyGame(gameId, role, playerId);
+  return {
+    id: game.id || gameId,
+    status: game.status || 'playing',
+    currentTurn: game.currentTurn || role,
+    players: game.players || { head: null, torso: null, legs: null, [role]: playerId },
+    uploads: game.uploads || { head: null, torso: null, legs: null },
+  };
+}
+
 export default function ExquisiteCorpse() {
   const [gameState, setGameState] = useState('menu');
   const [currentGameId, setCurrentGameId] = useState(null);
@@ -81,7 +102,7 @@ export default function ExquisiteCorpse() {
       if (foundGameId) {
         const gameRef = ref(db, `games/${foundGameId}`);
         const snap = await get(gameRef);
-        const game = snap.val();
+        const game = sanitizeGame(snap.val(), foundGameId, role, playerId);
         game.players[role] = playerId;
         game.currentTurn = role;
         await set(gameRef, game);
@@ -91,11 +112,7 @@ export default function ExquisiteCorpse() {
       } else {
         const gameId = `game_${Date.now()}`;
         role = 'head';
-        const newGame = {
-          id: gameId, status: 'playing', currentTurn: 'head',
-          players: { head: playerId, torso: null, legs: null },
-          uploads:  { head: null, torso: null, legs: null },
-        };
+        const newGame = makeEmptyGame(gameId, role, playerId);
         await set(ref(db, `games/${gameId}`), newGame);
         setCurrentGameId(gameId);
         setMyRole(role);
@@ -103,18 +120,15 @@ export default function ExquisiteCorpse() {
       }
       setStatusMsg('');
     } catch (err) {
-      setStatusMsg('Error connecting to Firebase. Check your database rules.');
+      setStatusMsg('Error: ' + err.message);
       console.error(err);
     }
   };
 
   const joinAdminGame = async () => {
     const gameId = `admin_${Date.now()}`;
-    const game = {
-      id: gameId, status: 'playing', currentTurn: 'head',
-      players: { head: playerId, torso: playerId, legs: playerId },
-      uploads:  { head: null, torso: null, legs: null },
-    };
+    const game = makeEmptyGame(gameId, 'head', playerId);
+    game.players = { head: playerId, torso: playerId, legs: playerId };
     await set(ref(db, `games/${gameId}`), game);
     setCurrentGameId(gameId);
     setMyRole('head');
@@ -137,15 +151,13 @@ export default function ExquisiteCorpse() {
     });
     try {
       const snap = await get(ref(db, `games/${currentGameId}`));
-      const game = snap.val();
-      if (game) {
-        if (currentRole === 'torso' && game.uploads?.head) {
-          const img = await loadImg(game.uploads.head);
-          ctx.drawImage(img, 0, 330, 850, 36, 0, 0, 850, 36);
-        } else if (currentRole === 'legs' && game.uploads?.torso) {
-          const img = await loadImg(game.uploads.torso);
-          ctx.drawImage(img, 0, 366, 850, 36, 0, 0, 850, 36);
-        }
+      const game = sanitizeGame(snap.val(), currentGameId, currentRole, playerId);
+      if (currentRole === 'torso' && game.uploads?.head) {
+        const img = await loadImg(game.uploads.head);
+        ctx.drawImage(img, 0, 330, 850, 36, 0, 0, 850, 36);
+      } else if (currentRole === 'legs' && game.uploads?.torso) {
+        const img = await loadImg(game.uploads.torso);
+        ctx.drawImage(img, 0, 366, 850, 36, 0, 0, 850, 36);
       }
     } catch (e) { console.warn('Could not load overlap image', e); }
     if (template.borderHeight > 0) {
@@ -175,25 +187,14 @@ export default function ExquisiteCorpse() {
     reader.readAsDataURL(file);
   };
 
-const submitDesign = async () => {
+  const submitDesign = async () => {
     if (!uploadedImage) return;
     const role = adminMode ? adminCurrentRole : myRole;
     setStatusMsg('Submitting...');
     try {
       const gameRef = ref(db, `games/${currentGameId}`);
       const snap = await get(gameRef);
-      let game = snap.val();
-
-      if (!game) {
-        // Rebuild game from scratch if missing
-        game = {
-          id: currentGameId,
-          status: 'playing',
-          currentTurn: role,
-          players: { head: null, torso: null, legs: null, [role]: playerId },
-          uploads: { head: null, torso: null, legs: null },
-        };
-      }
+      const game = sanitizeGame(snap.val(), currentGameId, role, playerId);
 
       game.uploads[role] = uploadedImage;
 
@@ -225,7 +226,6 @@ const submitDesign = async () => {
       console.error(err);
     }
   };
-
 
   const resetGame = () => {
     if (gameRefRef.current) { off(gameRefRef.current); gameRefRef.current = null; }
