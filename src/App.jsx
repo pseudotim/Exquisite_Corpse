@@ -250,7 +250,8 @@ canvas.height = HEAD_CONTENT + TORSO_CONTENT + LEGS_CONTENT;
       const legs  = await load(finalCreature.legs);
       ctx.drawImage(head,  0,   0, 850, 330, 0, 0, 850, HEAD_CONTENT);
       ctx.drawImage(torso, 0,   0, 850, 366, 0, HEAD_CONTENT, 850, TORSO_CONTENT);
-      ctx.drawImage(legs,  0,  36, 850, 366, 0, HEAD_CONTENT + TORSO_CONTENT, 850, LEGS_CONTENT);
+      ctx.drawImage(legs,  0,   0, 850, 366, 0, HEAD_CONTENT + TORSO_CONTENT, 850, LEGS_CONTENT);
+
 
     })();
   };
