@@ -180,9 +180,23 @@ const submitDesign = async () => {
     const role = adminMode ? adminCurrentRole : myRole;
     setStatusMsg('Submitting...');
     try {
-      const snap = await get(ref(db, `games/${currentGameId}`));
-      const game = { ...snap.val() };
+      const gameRef = ref(db, `games/${currentGameId}`);
+      const snap = await get(gameRef);
+      let game = snap.val();
+
+      if (!game) {
+        // Rebuild game from scratch if missing
+        game = {
+          id: currentGameId,
+          status: 'playing',
+          currentTurn: role,
+          players: { head: null, torso: null, legs: null, [role]: playerId },
+          uploads: { head: null, torso: null, legs: null },
+        };
+      }
+
       game.uploads[role] = uploadedImage;
+
       if (role === 'head') {
         game.currentTurn = 'torso';
         if (adminMode) setAdminCurrentRole('torso');
@@ -193,9 +207,11 @@ const submitDesign = async () => {
         game.status = 'completed';
         game.currentTurn = null;
       }
-      await set(ref(db, `games/${currentGameId}`), game);
+
+      await set(gameRef, game);
       setUploadedImage(null);
       setStatusMsg('');
+
       if (game.status === 'completed') {
         setFinalCreature({ head: game.uploads.head, torso: game.uploads.torso, legs: game.uploads.legs });
         setGameState('reveal');
