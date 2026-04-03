@@ -237,7 +237,7 @@ export default function ExquisiteCorpse() {
   const stitchCreature = () => {
     if (!canvasRef.current || !finalCreature) return;
     const canvas = canvasRef.current;
-    const HEAD_CONTENT = 330, TORSO_CONTENT = 330, LEGS_CONTENT = 366;
+    const HEAD_CONTENT = 330, TORSO_CONTENT = 365, LEGS_CONTENT = 366;
     canvas.width = 850;
     canvas.height = HEAD_CONTENT + TORSO_CONTENT + LEGS_CONTENT;
     const ctx = canvas.getContext('2d');
