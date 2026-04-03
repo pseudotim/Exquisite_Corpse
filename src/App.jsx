@@ -175,7 +175,7 @@ export default function ExquisiteCorpse() {
     reader.readAsDataURL(file);
   };
 
-  const submitDesign = async () => {
+const submitDesign = async () => {
     if (!uploadedImage) return;
     const role = adminMode ? adminCurrentRole : myRole;
     setStatusMsg('Submitting...');
@@ -205,10 +205,11 @@ export default function ExquisiteCorpse() {
         setGameState('waiting');
       }
     } catch (err) {
-      setStatusMsg('Error submitting. Try again.');
+      setStatusMsg('Error: ' + err.message);
       console.error(err);
     }
   };
+
 
   const resetGame = () => {
     if (gameRefRef.current) { off(gameRefRef.current); gameRefRef.current = null; }
