@@ -270,8 +270,8 @@ canvas.height = HEAD_CONTENT + TORSO_CONTENT + LEGS_CONTENT;
   if (gameState === 'menu') return (
     <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center p-6">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-lg">
-        <h1 className="text-4xl font-bold text-purple-900 mb-2">Exquisite Corpse</h1>
-        <p className="text-gray-500 mb-6 text-sm">A collaborative creature-building game for three players.</p>
+        <h1 className="text-4xl font-bold text-purple-900 mb-2"> The Exquisite Corpse Project</h1>
+        <p className="text-gray-500 mb-6 text-sm">A collaborative monster-building game for three incredibly cool players.</p>
         <div className="bg-purple-50 rounded-xl p-5 mb-6 text-sm text-gray-700 space-y-1">
           <p>① Join a game → get assigned Head, Torso, or Legs</p>
           <p>② Download your template → design in any image editor</p>
@@ -283,7 +283,7 @@ canvas.height = HEAD_CONTENT + TORSO_CONTENT + LEGS_CONTENT;
           Join Game
         </button>
         <button onClick={joinAdminGame} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-xl transition">
-          🔧 Admin Mode — Play All Roles
+          🔧 God Mode — Play All Roles
         </button>
       </div>
     </div>
