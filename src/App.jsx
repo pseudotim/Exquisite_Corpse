@@ -256,9 +256,9 @@ const handleFileUpload = (e) => {
       const head  = await load(finalCreature.head);
       const torso = await load(finalCreature.torso);
       const legs  = await load(finalCreature.legs);
-      ctx.drawImage(head,  0, 0, 850, 366, 0,   0, 850, 366);
-      ctx.drawImage(torso, 0, 0, 850, 366, 0, 366, 850, 366);
-      ctx.drawImage(legs,  0, 0, 850, 366, 0, 732, 850, 366);
+        ctx.drawImage(head,  0,  0, 850, 366, 0,   0, 850, 366);
+        ctx.drawImage(torso, 0, 36, 850, 366, 0, 366, 850, 366);
+        ctx.drawImage(legs,  0, 36, 850, 366, 0, 732, 850, 366);
     })();
   };
 
