@@ -17,8 +17,8 @@ const firebaseApp = initializeApp(firebaseConfig);
 const db = getDatabase(firebaseApp);
 
 const TEMPLATES = {
-  head:  { width: 850, height: 366, borderHeight: 36, label: 'Head' },
-  torso: { width: 850, height: 402, borderHeight: 36, label: 'Torso & Arms' },
+  head:  { width: 850, height: 402, borderHeight: 36, label: 'Head' },
+  torso: { width: 850, height: 438, borderHeight: 36, label: 'Torso & Arms' },
   legs:  { width: 850, height: 402, borderHeight: 0,  label: 'Legs & Feet' },
 };
 
@@ -154,7 +154,7 @@ export default function ExquisiteCorpse() {
       const game = sanitizeGame(snap.val(), currentGameId, currentRole, playerId);
       if (currentRole === 'torso' && game.uploads?.head) {
         const img = await loadImg(game.uploads.head);
-        ctx.drawImage(img, 0, 330, 850, 36, 0, 0, 850, 36);
+        ctx.drawImage(img, 0, 366, 850, 36, 0, 0, 850, 36);
       } else if (currentRole === 'legs' && game.uploads?.torso) {
         const img = await loadImg(game.uploads.torso);
         ctx.drawImage(img, 0, 366, 850, 36, 0, 0, 850, 36);
@@ -195,9 +195,7 @@ export default function ExquisiteCorpse() {
       const gameRef = ref(db, `games/${currentGameId}`);
       const snap = await get(gameRef);
       const game = sanitizeGame(snap.val(), currentGameId, role, playerId);
-
       game.uploads[role] = uploadedImage;
-
       if (role === 'head') {
         game.currentTurn = 'torso';
         if (adminMode) setAdminCurrentRole('torso');
@@ -208,11 +206,9 @@ export default function ExquisiteCorpse() {
         game.status = 'completed';
         game.currentTurn = null;
       }
-
       await set(gameRef, game);
       setUploadedImage(null);
       setStatusMsg('');
-
       if (game.status === 'completed') {
         setFinalCreature({ head: game.uploads.head, torso: game.uploads.torso, legs: game.uploads.legs });
         setGameState('reveal');
@@ -237,9 +233,8 @@ export default function ExquisiteCorpse() {
   const stitchCreature = () => {
     if (!canvasRef.current || !finalCreature) return;
     const canvas = canvasRef.current;
-const HEAD_CONTENT = 340, TORSO_CONTENT = 355, LEGS_CONTENT = 398;
-canvas.width = 850;
-canvas.height = HEAD_CONTENT + TORSO_CONTENT + LEGS_CONTENT;
+    canvas.width = 850;
+    canvas.height = 1098;
     const ctx = canvas.getContext('2d');
     const load = (src) => new Promise((res, rej) => {
       const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = src;
@@ -248,15 +243,9 @@ canvas.height = HEAD_CONTENT + TORSO_CONTENT + LEGS_CONTENT;
       const head  = await load(finalCreature.head);
       const torso = await load(finalCreature.torso);
       const legs  = await load(finalCreature.legs);
-        ctx.drawImage(head,  0, 0, 850, 366, 0,   0, 850, 366);
-        ctx.drawImage(torso, 0, 0, 850, 366, 0, 366, 850, 366);
-        ctx.drawImage(legs,  0, 0, 850, 366, 0, 732, 850, 366);    
-
-
-
-
-
-
+      ctx.drawImage(head,  0, 0, 850, 366, 0,   0, 850, 366);
+      ctx.drawImage(torso, 0, 0, 850, 366, 0, 366, 850, 366);
+      ctx.drawImage(legs,  0, 0, 850, 366, 0, 732, 850, 366);
     })();
   };
 
@@ -271,7 +260,7 @@ canvas.height = HEAD_CONTENT + TORSO_CONTENT + LEGS_CONTENT;
   if (gameState === 'menu') return (
     <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center p-6">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-lg">
-        <h1 className="text-4xl font-bold text-purple-900 mb-2"> The Exquisite Corpse Project</h1>
+        <h1 className="text-4xl font-bold text-purple-900 mb-2">The Exquisite Corpse Project</h1>
         <p className="text-gray-500 mb-6 text-sm">A collaborative monster-building game for three incredibly cool players.</p>
         <div className="bg-purple-50 rounded-xl p-5 mb-6 text-sm text-gray-700 space-y-1">
           <p>① Join a game → get assigned Head, Torso, or Legs</p>
