@@ -251,10 +251,13 @@ export default function ExquisiteCorpse() {
     const load = (src) => new Promise((res, rej) => {
       const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = src;
     });
-    (async () => {
+(async () => {
       const head  = await load(finalCreature.head);
       const torso = await load(finalCreature.torso);
       const legs  = await load(finalCreature.legs);
+      console.log('HEAD dimensions:', head.naturalWidth, head.naturalHeight);
+      console.log('TORSO dimensions:', torso.naturalWidth, torso.naturalHeight);
+      console.log('LEGS dimensions:', legs.naturalWidth, legs.naturalHeight);
       ctx.drawImage(head,  0,  0, 850, 362, 0,   0, 850, 362);
       ctx.drawImage(torso, 0, 40, 850, 362, 0, 362, 850, 362);
       ctx.drawImage(legs,  0, 40, 850, 362, 0, 724, 850, 362);
