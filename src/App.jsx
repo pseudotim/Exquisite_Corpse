@@ -146,7 +146,6 @@ export default function ExquisiteCorpse() {
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = '#FF0000';
     const loadImg = (src) => new Promise((res, rej) => {
       const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = src;
     });
@@ -163,7 +162,7 @@ export default function ExquisiteCorpse() {
     } catch (e) { console.warn('Could not load overlap image', e); }
     if (template.borderHeight > 0) {
       const lineY = canvas.height - template.borderHeight + 2;
-      ctx.strokeStyle = '#000000';
+      ctx.strokeStyle = '#FF0000';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(0, lineY);
@@ -179,27 +178,26 @@ export default function ExquisiteCorpse() {
     }, 'image/png');
   };
 
-const handleFileUpload = (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  if (!file.type.startsWith('image/png')) { alert('Please upload a PNG file'); return; }
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const img = new Image();
-    img.onload = () => {
-      const currentRole = adminMode ? adminCurrentRole : myRole;
-      const template = TEMPLATES[currentRole];
-      if (img.width !== template.width || img.height !== template.height) {
-        alert(`Wrong image size! Expected ${template.width}×${template.height}px but got ${img.width}×${img.height}px. Please upload the original template without resizing.`);
-        return;
-      }
-      setUploadedImage(ev.target.result);
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/png')) { alert('Please upload a PNG file'); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const currentRole = adminMode ? adminCurrentRole : myRole;
+        const template = TEMPLATES[currentRole];
+        if (img.width !== template.width || img.height !== template.height) {
+          alert(`Wrong image size! Expected ${template.width}×${template.height}px but got ${img.width}×${img.height}px. Please upload the original template without resizing.`);
+          return;
+        }
+        setUploadedImage(ev.target.result);
+      };
+      img.src = ev.target.result;
     };
-    img.src = ev.target.result;
+    reader.readAsDataURL(file);
   };
-  reader.readAsDataURL(file);
-};
-
 
   const submitDesign = async () => {
     if (!uploadedImage) return;
@@ -248,7 +246,7 @@ const handleFileUpload = (e) => {
     if (!canvasRef.current || !finalCreature) return;
     const canvas = canvasRef.current;
     canvas.width = 850;
-    canvas.height = 1098;
+    canvas.height = 1086;
     const ctx = canvas.getContext('2d');
     const load = (src) => new Promise((res, rej) => {
       const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = src;
@@ -257,10 +255,9 @@ const handleFileUpload = (e) => {
       const head  = await load(finalCreature.head);
       const torso = await load(finalCreature.torso);
       const legs  = await load(finalCreature.legs);
-        ctx.drawImage(head,  0,  0, 850, 362, 0,   0, 850, 362);
-        ctx.drawImage(torso, 0, 40, 850, 362, 0, 362, 850, 362);
-        ctx.drawImage(legs,  0, 40, 850, 362, 0, 724, 850, 362);
-
+      ctx.drawImage(head,  0,  0, 850, 362, 0,   0, 850, 362);
+      ctx.drawImage(torso, 0, 40, 850, 362, 0, 362, 850, 362);
+      ctx.drawImage(legs,  0, 40, 850, 362, 0, 724, 850, 362);
     })();
   };
 
