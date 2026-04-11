@@ -255,11 +255,11 @@ export default function ExquisiteCorpse() {
       const head  = await load(finalCreature.head);
       const torso = await load(finalCreature.torso);
       const legs  = await load(finalCreature.legs);
-      ctx.fillStyle = '#000000';
-      ctx.font = '20px Arial';
-      ctx.fillText(`Head: ${head.naturalWidth}x${head.naturalHeight}`, 20, 30);
-      ctx.fillText(`Torso: ${torso.naturalWidth}x${torso.naturalHeight}`, 20, 60);
-      ctx.fillText(`Legs: ${legs.naturalWidth}x${legs.naturalHeight}`, 20, 90);
+      ctx.fillStyle = '#FF0000';
+      ctx.font = '30px Arial';
+      ctx.fillText(`Head: ${head.naturalWidth}x${head.naturalHeight}`, 20, 50);
+      ctx.fillText(`Torso: ${torso.naturalWidth}x${torso.naturalHeight}`, 20, 100);
+      ctx.fillText(`Legs: ${legs.naturalWidth}x${legs.naturalHeight}`, 20, 150);
     })();
   };
 
