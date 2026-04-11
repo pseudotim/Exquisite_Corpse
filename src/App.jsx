@@ -146,6 +146,7 @@ export default function ExquisiteCorpse() {
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#FF0000';
     const loadImg = (src) => new Promise((res, rej) => {
       const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = src;
     });
