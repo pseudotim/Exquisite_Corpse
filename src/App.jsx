@@ -161,7 +161,7 @@ export default function ExquisiteCorpse() {
       }
     } catch (e) { console.warn('Could not load overlap image', e); }
     if (template.borderHeight > 0) {
-      const lineY = canvas.height - template.borderHeight;
+      const lineY = canvas.height - template.borderHeight + 2;
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 2;
       ctx.beginPath();
