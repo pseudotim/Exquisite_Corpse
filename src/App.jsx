@@ -137,6 +137,20 @@ export default function ExquisiteCorpse() {
     setGameState('designing');
   };
 
+  // Crop image to specified height before storing
+  const cropImageToHeight = (dataUrl, height) => new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 850;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.src = dataUrl;
+  });
+
   const downloadTemplate = async () => {
     const currentRole = adminMode ? adminCurrentRole : myRole;
     const template = TEMPLATES[currentRole];
@@ -154,9 +168,11 @@ export default function ExquisiteCorpse() {
       const game = sanitizeGame(snap.val(), currentGameId, currentRole, playerId);
       if (currentRole === 'torso' && game.uploads?.head) {
         const img = await loadImg(game.uploads.head);
+        // Copy rows 366→401 from head into rows 0→35 of torso template
         ctx.drawImage(img, 0, 366, 850, 36, 0, 0, 850, 36);
       } else if (currentRole === 'legs' && game.uploads?.torso) {
         const img = await loadImg(game.uploads.torso);
+        // Copy rows 366→401 from torso into rows 0→35 of legs template
         ctx.drawImage(img, 0, 366, 850, 36, 0, 0, 850, 36);
       }
     } catch (e) { console.warn('Could not load overlap image', e); }
@@ -207,7 +223,10 @@ export default function ExquisiteCorpse() {
       const gameRef = ref(db, `games/${currentGameId}`);
       const snap = await get(gameRef);
       const game = sanitizeGame(snap.val(), currentGameId, role, playerId);
+
+      // Store the image as-is — stitching handles the cropping
       game.uploads[role] = uploadedImage;
+
       if (role === 'head') {
         game.currentTurn = 'torso';
         if (adminMode) setAdminCurrentRole('torso');
@@ -246,7 +265,7 @@ export default function ExquisiteCorpse() {
     if (!canvasRef.current || !finalCreature) return;
     const canvas = canvasRef.current;
     canvas.width = 850;
-    canvas.height = 1022;
+    canvas.height = 1098;
     const ctx = canvas.getContext('2d');
     const load = (src) => new Promise((res, rej) => {
       const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = src;
@@ -255,9 +274,12 @@ export default function ExquisiteCorpse() {
       const head  = await load(finalCreature.head);
       const torso = await load(finalCreature.torso);
       const legs  = await load(finalCreature.legs);
-      ctx.drawImage(head,  0,  0, 850, 364, 0,   0, 850, 364);
-      ctx.drawImage(torso, 0, 36, 850, 328, 0, 364, 850, 328);
-      ctx.drawImage(legs,  0, 36, 850, 330, 0, 692, 850, 330);
+      // Head: rows 0→365 (366px) — excludes bottom 36px overlap zone
+      ctx.drawImage(head,  0, 0, 850, 366, 0,   0, 850, 366);
+      // Torso: rows 0→365 (366px) — excludes bottom 36px overlap zone
+      ctx.drawImage(torso, 0, 0, 850, 366, 0, 366, 850, 366);
+      // Legs: rows 0→365 (366px) — full canvas
+      ctx.drawImage(legs,  0, 0, 850, 366, 0, 732, 850, 366);
     })();
   };
 
