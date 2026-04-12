@@ -49,31 +49,24 @@ function sanitizeGame(game, gameId, role, playerId) {
   };
 }
 
-// ── Template Preview ─────────────────────────────────────────────────────────
+// ── Shared download helper ───────────────────────────────────────────────────
 
-function TemplatePreview({ dataUrl, role, onBack }) {
-  return (
-    <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
-        <h2 className="text-xl font-bold text-purple-900 mb-1">Save Your Template</h2>
-        <p className="text-sm text-gray-500 mb-1">
-          Long-press the image → <strong>Save to Photos</strong> or <strong>Save to Files</strong>
-        </p>
-        <p className="text-xs text-gray-400 mb-4">
-          Filename: <strong>corpse-{role}-template.png</strong>
-        </p>
-        <img src={dataUrl} alt="template" className="w-full rounded-lg border border-gray-200 mb-4" />
-        <button onClick={onBack} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl transition">
-          ← Done, Go Back
-        </button>
-      </div>
-    </div>
-  );
+function downloadCanvasAsPng(canvas, filename) {
+  canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 'image/png');
 }
 
-// ── Generate template canvas → return dataUrl ────────────────────────────────
+// ── Generate template canvas ─────────────────────────────────────────────────
 
-function generateTemplateDataUrl(role, overlapImageEl) {
+function generateTemplateCanvas(role, overlapImageEl) {
   const template = TEMPLATES[role];
   const canvas = document.createElement('canvas');
   canvas.width = template.width;
@@ -93,7 +86,7 @@ function generateTemplateDataUrl(role, overlapImageEl) {
     ctx.lineTo(canvas.width, lineY);
     ctx.stroke();
   }
-  return canvas.toDataURL('image/png');
+  return canvas;
 }
 
 // ── Stitch Test Tool ─────────────────────────────────────────────────────────
@@ -187,7 +180,6 @@ function StitchTestTool({ onClose }) {
   const [statuses, setStatuses] = useState({ head: 'Using test image', torso: 'Using test image', legs: 'Using test image' });
   const [statusTypes, setStatusTypes] = useState({ head: 'info', torso: 'info', legs: 'info' });
   const [checks, setChecks] = useState(null);
-  const [templatePreview, setTemplatePreview] = useState(null);
   const [initialized, setInitialized] = useState(false);
 
   const initSection = useCallback((role) => {
@@ -199,7 +191,6 @@ function StitchTestTool({ onClose }) {
     return true;
   }, []);
 
-  // Use a callback ref pattern to initialize once all canvases are mounted
   useEffect(() => {
     if (initialized) return;
     const attempt = () => {
@@ -230,8 +221,8 @@ function StitchTestTool({ onClose }) {
   const downloadTemplate = (role) => {
     const prevRole = role === 'torso' ? 'head' : role === 'legs' ? 'torso' : null;
     const overlapEl = prevRole ? cleanRefs[prevRole].current : null;
-    const dataUrl = generateTemplateDataUrl(role, overlapEl);
-    setTemplatePreview({ dataUrl, role });
+    const canvas = generateTemplateCanvas(role, overlapEl);
+    downloadCanvasAsPng(canvas, `corpse-${role}-template.png`);
   };
 
   const uploadDesign = (role, e) => {
@@ -339,14 +330,6 @@ function StitchTestTool({ onClose }) {
     setChecks(newChecks);
   };
 
-  if (templatePreview) return (
-    <TemplatePreview
-      dataUrl={templatePreview.dataUrl}
-      role={templatePreview.role}
-      onBack={() => setTemplatePreview(null)}
-    />
-  );
-
   const statusColor = { ok: 'text-emerald-600', err: 'text-red-500', info: 'text-gray-400' };
   const roles = ['head', 'torso', 'legs'];
   const groups = checks ? [...new Set(checks.map(c => c.group))] : [];
@@ -374,9 +357,7 @@ function StitchTestTool({ onClose }) {
                   {isReal[role] ? 'REAL' : 'TEST'}
                 </span>
               </div>
-              {/* Hidden clean canvas used for stitching */}
               <canvas ref={cleanRefs[role]} style={{ display: 'none' }} />
-              {/* Visible annotated canvas */}
               <canvas ref={annotatedRefs[role]} className="w-full rounded border border-gray-200 block" />
               <div className="flex gap-2 mt-2 flex-wrap">
                 <button onClick={() => downloadTemplate(role)} className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">⬇ Template</button>
@@ -438,8 +419,6 @@ export default function ExquisiteCorpse() {
   const [adminMode, setAdminMode] = useState(false);
   const [adminCurrentRole, setAdminCurrentRole] = useState('head');
   const [statusMsg, setStatusMsg] = useState('');
-  const [templatePreview, setTemplatePreview] = useState(null);
-  const [prevGameState, setPrevGameState] = useState('designing');
   const [playerId] = useState(() => `p_${Date.now()}_${Math.random().toString(36).substr(2,6)}`);
   const canvasRef = useRef(null);
   const gameRefRef = useRef(null);
@@ -527,10 +506,8 @@ export default function ExquisiteCorpse() {
         overlapEl = await loadImg(game.uploads.torso);
       }
     } catch (e) { console.warn('Could not load overlap image', e); }
-    const dataUrl = generateTemplateDataUrl(currentRole, overlapEl);
-    setPrevGameState(gameState);
-    setTemplatePreview({ dataUrl, role: currentRole });
-    setGameState('template-preview');
+    const canvas = generateTemplateCanvas(currentRole, overlapEl);
+    downloadCanvasAsPng(canvas, `corpse-${currentRole}-template.png`);
   };
 
   const handleFileUpload = (e) => {
@@ -580,7 +557,7 @@ export default function ExquisiteCorpse() {
     if (gameRefRef.current) { off(gameRefRef.current); gameRefRef.current = null; }
     setCurrentGameId(null); setMyRole(null); setUploadedImage(null);
     setFinalCreature(null); setAdminMode(false); setAdminCurrentRole('head');
-    setStatusMsg(''); setTemplatePreview(null); setGameState('menu');
+    setStatusMsg(''); setGameState('menu');
   };
 
   const stitchCreature = () => {
@@ -603,21 +580,10 @@ export default function ExquisiteCorpse() {
 
   const downloadCreature = () => {
     if (!canvasRef.current) return;
-    const a = document.createElement('a');
-    a.href = canvasRef.current.toDataURL('image/png');
-    a.download = 'exquisite-corpse-creature.png';
-    a.click();
+    downloadCanvasAsPng(canvasRef.current, 'exquisite-corpse-creature.png');
   };
 
   if (gameState === 'stitch-test') return <StitchTestTool onClose={() => setGameState('menu')} />;
-
-  if (gameState === 'template-preview') return (
-    <TemplatePreview
-      dataUrl={templatePreview?.dataUrl}
-      role={templatePreview?.role}
-      onBack={() => setGameState(prevGameState)}
-    />
-  );
 
   if (gameState === 'menu') return (
     <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center p-6">
