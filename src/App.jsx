@@ -18,8 +18,8 @@ const db = getDatabase(firebaseApp);
 
 const TEMPLATES = {
   head:  { width: 850, height: 402, borderHeight: 36, label: 'Head' },
-  torso: { width: 850, height: 438, borderHeight: 36, label: 'Torso & Arms' },
-  legs:  { width: 850, height: 402, borderHeight: 0,  label: 'Legs & Feet' },
+  torso: { width: 850, height: 402, borderHeight: 36, label: 'Torso & Arms' },
+  legs:  { width: 850, height: 366, borderHeight: 0,  label: 'Legs & Feet' },
 };
 
 function makeEmptyGame(gameId, role, playerId) {
@@ -161,8 +161,8 @@ export default function ExquisiteCorpse() {
       }
     } catch (e) { console.warn('Could not load overlap image', e); }
     if (template.borderHeight > 0) {
-      const lineY = canvas.height - template.borderHeight + 2;
-      ctx.strokeStyle = '#FF0000';
+      const lineY = canvas.height - template.borderHeight;
+      ctx.strokeStyle = '#000000';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(0, lineY);
@@ -246,20 +246,18 @@ export default function ExquisiteCorpse() {
     if (!canvasRef.current || !finalCreature) return;
     const canvas = canvasRef.current;
     canvas.width = 850;
-    canvas.height = 1086;
+    canvas.height = 1022;
     const ctx = canvas.getContext('2d');
     const load = (src) => new Promise((res, rej) => {
       const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = src;
     });
-(async () => {
+    (async () => {
       const head  = await load(finalCreature.head);
       const torso = await load(finalCreature.torso);
       const legs  = await load(finalCreature.legs);
-      ctx.fillStyle = '#FF0000';
-      ctx.font = '30px Arial';
-      ctx.fillText(`Head: ${head.naturalWidth}x${head.naturalHeight}`, 20, 50);
-      ctx.fillText(`Torso: ${torso.naturalWidth}x${torso.naturalHeight}`, 20, 100);
-      ctx.fillText(`Legs: ${legs.naturalWidth}x${legs.naturalHeight}`, 20, 150);
+      ctx.drawImage(head,  0,  0, 850, 364, 0,   0, 850, 364);
+      ctx.drawImage(torso, 0, 36, 850, 328, 0, 364, 850, 328);
+      ctx.drawImage(legs,  0, 36, 850, 330, 0, 692, 850, 330);
     })();
   };
 
