@@ -30,13 +30,13 @@ const BAND_COLOR = {
   legs:  { r: 255, g: 140, b: 0   },
 };
 
-// Border line sits at rows 366-367 (2px)
-// Head stitch takes rows 0-365 → line excluded
-// Overlap copy starts at row 368 → line excluded
-const BORDER_LINE_Y = 366;
+// Border line centered on row 367 → paints rows 366-367
+// Stitch crops rows 0→365 → line excluded ✅
+// Overlap copy starts at row 369 → line excluded ✅
+const BORDER_LINE_Y = 367;
 const BORDER_LINE_WIDTH = 2;
-const OVERLAP_START = 368;
-const OVERLAP_HEIGHT = 34; // rows 368-401
+const OVERLAP_START = 369;
+const OVERLAP_HEIGHT = 33; // rows 369-401
 
 function makeEmptyGame(gameId, role, playerId) {
   return {
@@ -57,8 +57,6 @@ function sanitizeGame(game, gameId, role, playerId) {
   };
 }
 
-// ── Shared download helper ───────────────────────────────────────────────────
-
 function downloadCanvasAsPng(canvas, filename) {
   canvas.toBlob((blob) => {
     const url = URL.createObjectURL(blob);
@@ -72,8 +70,6 @@ function downloadCanvasAsPng(canvas, filename) {
   }, 'image/png');
 }
 
-// ── Generate template canvas ─────────────────────────────────────────────────
-
 function generateTemplateCanvas(role, overlapImageEl) {
   const template = TEMPLATES[role];
   const canvas = document.createElement('canvas');
@@ -83,11 +79,9 @@ function generateTemplateCanvas(role, overlapImageEl) {
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   if (overlapImageEl) {
-    // Copy rows 368-401 from previous section into rows 0-33 of this template
     ctx.drawImage(overlapImageEl, 0, OVERLAP_START, 850, OVERLAP_HEIGHT, 0, 0, 850, OVERLAP_HEIGHT);
   }
   if (template.borderHeight > 0) {
-    // Border line at rows 366-367 — excluded from both stitch and overlap copy
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = BORDER_LINE_WIDTH;
     ctx.beginPath();
@@ -97,8 +91,6 @@ function generateTemplateCanvas(role, overlapImageEl) {
   }
   return canvas;
 }
-
-// ── Stitch Test Tool ─────────────────────────────────────────────────────────
 
 function drawTestImage(canvasEl, role) {
   const t = TEMPLATES[role];
@@ -420,8 +412,6 @@ function StitchTestTool({ onClose }) {
     </div>
   );
 }
-
-// ── Main App ─────────────────────────────────────────────────────────────────
 
 export default function ExquisiteCorpse() {
   const [gameState, setGameState] = useState('menu');
