@@ -30,6 +30,14 @@ const BAND_COLOR = {
   legs:  { r: 255, g: 140, b: 0   },
 };
 
+// Border line sits at rows 366-367 (2px)
+// Head stitch takes rows 0-365 → line excluded
+// Overlap copy starts at row 368 → line excluded
+const BORDER_LINE_Y = 366;
+const BORDER_LINE_WIDTH = 2;
+const OVERLAP_START = 368;
+const OVERLAP_HEIGHT = 34; // rows 368-401
+
 function makeEmptyGame(gameId, role, playerId) {
   return {
     id: gameId, status: 'playing', currentTurn: role,
@@ -75,15 +83,16 @@ function generateTemplateCanvas(role, overlapImageEl) {
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   if (overlapImageEl) {
-    ctx.drawImage(overlapImageEl, 0, 366, 850, 36, 0, 0, 850, 36);
+    // Copy rows 368-401 from previous section into rows 0-33 of this template
+    ctx.drawImage(overlapImageEl, 0, OVERLAP_START, 850, OVERLAP_HEIGHT, 0, 0, 850, OVERLAP_HEIGHT);
   }
   if (template.borderHeight > 0) {
-    const lineY = canvas.height - template.borderHeight + 3;
+    // Border line at rows 366-367 — excluded from both stitch and overlap copy
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = BORDER_LINE_WIDTH;
     ctx.beginPath();
-    ctx.moveTo(0, lineY);
-    ctx.lineTo(canvas.width, lineY);
+    ctx.moveTo(0, BORDER_LINE_Y);
+    ctx.lineTo(canvas.width, BORDER_LINE_Y);
     ctx.stroke();
   }
   return canvas;
@@ -124,9 +133,12 @@ function drawTestImage(canvasEl, role) {
     ctx.beginPath(); ctx.ellipse(midX + 80, 230, 80, 30, 0.3, 0, Math.PI * 2); ctx.stroke();
   }
   if (t.borderHeight > 0) {
-    const lineY = t.height - t.borderHeight + 3;
-    ctx.strokeStyle = '#000000'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(0, lineY); ctx.lineTo(STITCH_W, lineY); ctx.stroke();
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = BORDER_LINE_WIDTH;
+    ctx.beginPath();
+    ctx.moveTo(0, BORDER_LINE_Y);
+    ctx.lineTo(STITCH_W, BORDER_LINE_Y);
+    ctx.stroke();
   }
 }
 
@@ -137,20 +149,21 @@ function drawAnnotatedOverlay(canvasEl, cleanSrc, role) {
   const ctx = canvasEl.getContext('2d');
   ctx.drawImage(cleanSrc, 0, 0);
   if (role !== 'head') {
-    ctx.fillStyle = 'rgba(254,249,195,0.5)'; ctx.fillRect(0, 0, STITCH_W, 36);
+    ctx.fillStyle = 'rgba(254,249,195,0.5)';
+    ctx.fillRect(0, 0, STITCH_W, OVERLAP_HEIGHT);
     ctx.fillStyle = '#92400e'; ctx.font = '11px Arial';
-    ctx.fillText('overlap (rows 0-35)', 4, 13);
+    ctx.fillText(`overlap (rows 0-${OVERLAP_HEIGHT - 1})`, 4, 13);
   }
   if (t.borderHeight > 0) {
-    const cropStart = t.height - t.borderHeight;
-    ctx.fillStyle = 'rgba(254,226,226,0.4)'; ctx.fillRect(0, cropStart, STITCH_W, t.borderHeight);
+    const cropStart = STITCH_SECTION;
+    ctx.fillStyle = 'rgba(254,226,226,0.4)';
+    ctx.fillRect(0, cropStart, STITCH_W, t.height - cropStart);
     ctx.fillStyle = '#991b1b'; ctx.font = '11px Arial';
-    ctx.fillText(`crop zone rows ${cropStart}-${t.height - 1}`, 4, cropStart + 13);
-    const lineY = t.height - t.borderHeight + 3;
+    ctx.fillText(`excluded zone rows ${cropStart}-${t.height - 1}`, 4, cropStart + 13);
     ctx.fillStyle = '#000'; ctx.font = '10px Arial';
-    ctx.fillText(`border → row ${lineY}`, 4, lineY - 4);
+    ctx.fillText(`border line → row ${BORDER_LINE_Y}`, 4, BORDER_LINE_Y - 4);
   }
-  const stitchRow = t.height - t.borderHeight;
+  const stitchRow = STITCH_SECTION;
   ctx.strokeStyle = '#7c3aed'; ctx.lineWidth = 1; ctx.setLineDash([6, 4]);
   ctx.beginPath(); ctx.moveTo(0, stitchRow); ctx.lineTo(STITCH_W, stitchRow); ctx.stroke();
   ctx.setLineDash([]);
@@ -572,9 +585,9 @@ export default function ExquisiteCorpse() {
       const head  = await load(finalCreature.head);
       const torso = await load(finalCreature.torso);
       const legs  = await load(finalCreature.legs);
-      ctx.drawImage(head,  0, 0, 850, 366, 0,   0, 850, 366);
-      ctx.drawImage(torso, 0, 0, 850, 366, 0, 366, 850, 366);
-      ctx.drawImage(legs,  0, 0, 850, 366, 0, 732, 850, 366);
+      ctx.drawImage(head,  0, 0, 850, STITCH_SECTION, 0,   0, 850, STITCH_SECTION);
+      ctx.drawImage(torso, 0, 0, 850, STITCH_SECTION, 0, 366, 850, STITCH_SECTION);
+      ctx.drawImage(legs,  0, 0, 850, STITCH_SECTION, 0, 732, 850, STITCH_SECTION);
     })();
   };
 
