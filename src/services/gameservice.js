@@ -4,27 +4,65 @@
 
 import { ref, set, get, onValue, off } from "firebase/database";
 import { db } from "./firebase.js";
+import { SECTION_STATES } from "../config.js";
 
-// ── Game Factories ────────────────────────────────────────────────────────────
+// ── Section Factory ───────────────────────────────────────────────────────────
 
-export function makeEmptyGame(gameId, role, playerId) {
+export function makeEmptySection(state = SECTION_STATES.WAITING) {
   return {
-    id: gameId,
-    status: 'playing',
-    currentTurn: role,
-    players: { head: null, torso: null, legs: null, [role]: playerId },
-    uploads: { head: null, torso: null, legs: null },
+    state,
+    playerId:     null,
+    inviteCode:   null,
+    inviteEmail:  null,
+    claimedAt:    null,
+    invitedAt:    null,
+    downloadedAt: null,
+    upload:       null,
   };
 }
 
-export function sanitizeGame(game, gameId, role, playerId) {
-  if (!game) return makeEmptyGame(gameId, role, playerId);
+// ── Game Factory ──────────────────────────────────────────────────────────────
+
+export function makeEmptyGame(gameId) {
   return {
-    id: game.id || gameId,
-    status: game.status || 'playing',
-    currentTurn: game.currentTurn || role,
-    players: game.players || { head: null, torso: null, legs: null, [role]: playerId },
-    uploads: game.uploads || { head: null, torso: null, legs: null },
+    id:        gameId,
+    status:    'in-progress',
+    createdAt: Date.now(),
+    sections: {
+      head:  makeEmptySection(SECTION_STATES.OPEN),
+      torso: makeEmptySection(SECTION_STATES.WAITING),
+      legs:  makeEmptySection(SECTION_STATES.WAITING),
+    },
+  };
+}
+
+// ── Sanitizer ─────────────────────────────────────────────────────────────────
+
+export function sanitizeGame(game, gameId) {
+  if (!game) return makeEmptyGame(gameId);
+  return {
+    id:        game.id        || gameId,
+    status:    game.status    || 'in-progress',
+    createdAt: game.createdAt || Date.now(),
+    sections: {
+      head:  sanitizeSection(game.sections?.head,  SECTION_STATES.OPEN),
+      torso: sanitizeSection(game.sections?.torso, SECTION_STATES.WAITING),
+      legs:  sanitizeSection(game.sections?.legs,  SECTION_STATES.WAITING),
+    },
+  };
+}
+
+function sanitizeSection(section, defaultState) {
+  if (!section) return makeEmptySection(defaultState);
+  return {
+    state:        section.state        || defaultState,
+    playerId:     section.playerId     || null,
+    inviteCode:   section.inviteCode   || null,
+    inviteEmail:  section.inviteEmail  || null,
+    claimedAt:    section.claimedAt    || null,
+    invitedAt:    section.invitedAt    || null,
+    downloadedAt: section.downloadedAt || null,
+    upload:       section.upload       || null,
   };
 }
 
