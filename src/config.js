@@ -23,5 +23,18 @@ export const OVERLAP_HEIGHT    = 33;
 // ── Timer Config ──────────────────────────────────────────────────────────────
 // Adjust these to experiment with game pacing
 
-export const SUBMISSION_TIMEOUT_HOURS = 24;
-export const INVITE_TIMEOUT_HOURS     = 24;
+export const CLAIMED_TIMEOUT_HOURS    = 1;   // must download after claiming from open pool
+export const INVITE_TIMEOUT_HOURS     = 24;  // must claim after receiving email invite
+export const SUBMISSION_TIMEOUT_HOURS = 24;  // must submit after downloading template
+
+// ── Section States ────────────────────────────────────────────────────────────
+
+export const SECTION_STATES = {
+  WAITING:     'waiting',     // previous section not yet submitted
+  OPEN:        'open',        // available for anyone to claim
+  CLAIMED:     'claimed',     // claimed from open pool, not yet downloaded
+  ASSIGNED:    'assigned',    // reserved for specific person via email invite
+  IN_PROGRESS: 'in-progress', // template downloaded, drawing in progress
+  SUBMITTED:   'submitted',   // drawing uploaded, choosing who draws next
+  COMPLETED:   'completed',   // locked in as part of finished creature
+};
