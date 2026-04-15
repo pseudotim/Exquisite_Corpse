@@ -1,9 +1,24 @@
 // ── Game Logic ────────────────────────────────────────────────────────────────
-// Core game functions: joining, submitting, stitching.
+// Core game functions: joining, submitting, stitching, state transitions.
 // Imports from services — never touches Firebase or React directly.
 
-import { TEMPLATES, STITCH_W, STITCH_SECTION, OVERLAP_START, OVERLAP_HEIGHT, BORDER_LINE_Y, BORDER_LINE_WIDTH } from "../config.js";
-import { makeEmptyGame, sanitizeGame, fetchAllGames, fetchGame, saveGame } from "../services/gameService.js";
+import {
+  TEMPLATES, STITCH_W, STITCH_SECTION,
+  OVERLAP_START, OVERLAP_HEIGHT,
+  BORDER_LINE_Y, BORDER_LINE_WIDTH,
+  SECTION_STATES,
+  CLAIMED_TIMEOUT_HOURS,
+  INVITE_TIMEOUT_HOURS,
+  SUBMISSION_TIMEOUT_HOURS,
+} from "../config.js";
+
+import {
+  makeEmptyGame,
+  sanitizeGame,
+  fetchAllGames,
+  fetchGame,
+  saveGame,
+} from "../services/gameService.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -51,38 +66,106 @@ function loadImage(src) {
   });
 }
 
+function hoursAgo(timestamp) {
+  return (Date.now() - timestamp) / (1000 * 60 * 60);
+}
+
+// ── Timeout Checks ────────────────────────────────────────────────────────────
+
+export function isSectionTimedOut(section) {
+  if (!section) return false;
+
+  if (section.state === SECTION_STATES.CLAIMED && section.claimedAt) {
+    return hoursAgo(section.claimedAt) > CLAIMED_TIMEOUT_HOURS;
+  }
+  if (section.state === SECTION_STATES.ASSIGNED && section.invitedAt) {
+    return hoursAgo(section.invitedAt) > INVITE_TIMEOUT_HOURS;
+  }
+  if (section.state === SECTION_STATES.IN_PROGRESS && section.downloadedAt) {
+    return hoursAgo(section.downloadedAt) > SUBMISSION_TIMEOUT_HOURS;
+  }
+  return false;
+}
+
+export function revertTimedOutSections(game) {
+  const roles = ['head', 'torso', 'legs'];
+  let changed = false;
+  roles.forEach(role => {
+    const section = game.sections[role];
+    if (isSectionTimedOut(section)) {
+      game.sections[role] = {
+        ...section,
+        state:        SECTION_STATES.OPEN,
+        playerId:     null,
+        inviteCode:   null,
+        inviteEmail:  null,
+        claimedAt:    null,
+        invitedAt:    null,
+        downloadedAt: null,
+      };
+      changed = true;
+    }
+  });
+  return changed;
+}
+
 // ── Game Actions ──────────────────────────────────────────────────────────────
 
 export async function joinGame(playerId) {
   const games = await fetchAllGames();
-  let foundGameId = null, role = null;
+  let foundGameId = null;
+  let foundRole = null;
 
   for (let id in games) {
-    const g = games[id];
-    if (g.status !== 'playing') continue;
-    if (g.uploads?.head && !g.players?.torso) { foundGameId = id; role = 'torso'; break; }
-    if (g.uploads?.torso && !g.players?.legs) { foundGameId = id; role = 'legs'; break; }
+    const g = sanitizeGame(games[id], id);
+
+    // Check for timed out sections first
+    revertTimedOutSections(g);
+
+    const roles = ['head', 'torso', 'legs'];
+    for (let role of roles) {
+      const section = g.sections[role];
+      if (section.state === SECTION_STATES.OPEN) {
+        foundGameId = id;
+        foundRole = role;
+        break;
+      }
+    }
+    if (foundGameId) break;
   }
 
   if (foundGameId) {
-    const game = sanitizeGame(await fetchGame(foundGameId), foundGameId, role, playerId);
-    game.players[role] = playerId;
-    game.currentTurn = role;
+    const game = sanitizeGame(await fetchGame(foundGameId), foundGameId);
+    revertTimedOutSections(game);
+    game.sections[foundRole] = {
+      ...game.sections[foundRole],
+      state:     SECTION_STATES.CLAIMED,
+      playerId,
+      claimedAt: Date.now(),
+    };
     await saveGame(foundGameId, game);
-    return { gameId: foundGameId, role };
+    return { gameId: foundGameId, role: foundRole };
   } else {
     const gameId = `game_${Date.now()}`;
-    role = 'head';
-    const newGame = makeEmptyGame(gameId, role, playerId);
+    const newGame = makeEmptyGame(gameId);
+    newGame.sections.head = {
+      ...newGame.sections.head,
+      state:     SECTION_STATES.CLAIMED,
+      playerId,
+      claimedAt: Date.now(),
+    };
     await saveGame(gameId, newGame);
-    return { gameId, role };
+    return { gameId, role: 'head' };
   }
 }
 
 export async function joinAdminGame(playerId) {
   const gameId = `admin_${Date.now()}`;
-  const game = makeEmptyGame(gameId, 'head', playerId);
-  game.players = { head: playerId, torso: playerId, legs: playerId };
+  const game = makeEmptyGame(gameId);
+  const now = Date.now();
+  game.sections.head  = { ...game.sections.head,  state: SECTION_STATES.CLAIMED, playerId, claimedAt: now };
+  game.sections.torso = { ...game.sections.torso, state: SECTION_STATES.CLAIMED, playerId, claimedAt: now };
+  game.sections.legs  = { ...game.sections.legs,  state: SECTION_STATES.CLAIMED, playerId, claimedAt: now };
   await saveGame(gameId, game);
   return { gameId, role: 'head' };
 }
@@ -90,12 +173,19 @@ export async function joinAdminGame(playerId) {
 export async function downloadTemplate(gameId, role, playerId) {
   let overlapEl = null;
   try {
-    const game = sanitizeGame(await fetchGame(gameId), gameId, role, playerId);
-    if (role === 'torso' && game.uploads?.head) {
-      overlapEl = await loadImage(game.uploads.head);
-    } else if (role === 'legs' && game.uploads?.torso) {
-      overlapEl = await loadImage(game.uploads.torso);
+    const game = sanitizeGame(await fetchGame(gameId), gameId);
+    if (role === 'torso' && game.sections.head.upload) {
+      overlapEl = await loadImage(game.sections.head.upload);
+    } else if (role === 'legs' && game.sections.torso.upload) {
+      overlapEl = await loadImage(game.sections.torso.upload);
     }
+    // Mark section as in-progress
+    game.sections[role] = {
+      ...game.sections[role],
+      state:        SECTION_STATES.IN_PROGRESS,
+      downloadedAt: Date.now(),
+    };
+    await saveGame(gameId, game);
   } catch (e) {
     console.warn('Could not load overlap image', e);
   }
@@ -103,17 +193,103 @@ export async function downloadTemplate(gameId, role, playerId) {
   downloadCanvasAsPng(canvas, `corpse-${role}-template.png`);
 }
 
-export async function submitDesign(gameId, role, playerId, uploadedImage, adminMode) {
-  const game = sanitizeGame(await fetchGame(gameId), gameId, role, playerId);
-  game.uploads[role] = uploadedImage;
+export async function submitDesign(gameId, role, playerId, uploadedImage) {
+  const game = sanitizeGame(await fetchGame(gameId), gameId);
 
-  if (role === 'head')       { game.currentTurn = 'torso'; }
-  else if (role === 'torso') { game.currentTurn = 'legs'; }
-  else                       { game.status = 'completed'; game.currentTurn = null; }
+  // Mark this section as submitted with the upload
+  game.sections[role] = {
+    ...game.sections[role],
+    state:  SECTION_STATES.SUBMITTED,
+    upload: uploadedImage,
+  };
+
+  // Check if all sections are completed
+  const allDone = ['head', 'torso', 'legs'].every(r =>
+    r === role ||
+    game.sections[r].state === SECTION_STATES.COMPLETED ||
+    game.sections[r].state === SECTION_STATES.SUBMITTED
+  );
+
+  if (allDone) {
+    ['head', 'torso', 'legs'].forEach(r => {
+      game.sections[r].state = SECTION_STATES.COMPLETED;
+    });
+    game.status = 'completed';
+  }
 
   await saveGame(gameId, game);
   return game;
 }
+
+export async function openNextSection(gameId, role) {
+  const game = sanitizeGame(await fetchGame(gameId), gameId);
+  const nextRole = role === 'head' ? 'torso' : role === 'torso' ? 'legs' : null;
+  if (!nextRole) return game;
+  game.sections[role].state = SECTION_STATES.COMPLETED;
+  game.sections[nextRole] = {
+    ...game.sections[nextRole],
+    state: SECTION_STATES.OPEN,
+  };
+  await saveGame(gameId, game);
+  return game;
+}
+
+export async function inviteNextPlayer(gameId, role, email, inviteCode) {
+  const game = sanitizeGame(await fetchGame(gameId), gameId);
+  const nextRole = role === 'head' ? 'torso' : role === 'torso' ? 'legs' : null;
+  if (!nextRole) return game;
+  game.sections[role].state = SECTION_STATES.COMPLETED;
+  game.sections[nextRole] = {
+    ...game.sections[nextRole],
+    state:       SECTION_STATES.ASSIGNED,
+    inviteCode,
+    inviteEmail: email,
+    invitedAt:   Date.now(),
+  };
+  await saveGame(gameId, game);
+  return game;
+}
+
+// ── State Application ─────────────────────────────────────────────────────────
+
+export function applyGameState(game, role, playerId, callbacks) {
+  const { onCompleted, onSubmitted, onDesigning, onWaiting } = callbacks;
+  if (!game) return;
+
+  const sanitized = sanitizeGame(game, game.id);
+  revertTimedOutSections(sanitized);
+
+  if (sanitized.status === 'completed') {
+    onCompleted({
+      head:  sanitized.sections.head.upload,
+      torso: sanitized.sections.torso.upload,
+      legs:  sanitized.sections.legs.upload,
+    });
+    return;
+  }
+
+  const section = sanitized.sections[role];
+  if (!section) return;
+
+  if (section.state === SECTION_STATES.SUBMITTED) {
+    onSubmitted();
+    return;
+  }
+
+  if (
+    section.playerId === playerId && (
+      section.state === SECTION_STATES.CLAIMED ||
+      section.state === SECTION_STATES.IN_PROGRESS
+    )
+  ) {
+    onDesigning();
+    return;
+  }
+
+  onWaiting();
+}
+
+// ── Stitching ─────────────────────────────────────────────────────────────────
 
 export async function stitchCreature(canvasEl, finalCreature) {
   if (!canvasEl || !finalCreature) return;
@@ -126,15 +302,4 @@ export async function stitchCreature(canvasEl, finalCreature) {
   ctx.drawImage(head,  0, 0, 850, STITCH_SECTION, 0,   0, 850, STITCH_SECTION);
   ctx.drawImage(torso, 0, 0, 850, STITCH_SECTION, 0, 366, 850, STITCH_SECTION);
   ctx.drawImage(legs,  0, 0, 850, STITCH_SECTION, 0, 732, 850, STITCH_SECTION);
-}
-
-export function applyGameState(game, role, callbacks) {
-  const { onCompleted, onDesigning, onWaiting } = callbacks;
-  if (game.status === 'completed') {
-    onCompleted({ head: game.uploads.head, torso: game.uploads.torso, legs: game.uploads.legs });
-  } else if (game.currentTurn === role && !game.uploads[role]) {
-    onDesigning();
-  } else {
-    onWaiting();
-  }
 }
